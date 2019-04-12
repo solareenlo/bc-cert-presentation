@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>reveal.js</title>
+
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/reveal.css">
+    <link rel="stylesheet" href="css/theme/black.css">
+
+    <!-- Theme used for syntax highlighting of code -->
+    <link rel="stylesheet" href="lib/css/monokai.css">
+
+    <!-- Printing and PDF exports -->
+    <script>
+      var link = document.createElement( 'link' );
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = window.location.search.match( /print-pdf/gi ) ? 'css/print/pdf.css' : 'css/print/paper.css';
+      document.getElementsByTagName( 'head' )[0].appendChild( link );
+    </script>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          <h2>証明書の発行部分</h2>
+          <p>2019/04/13</p>
+          <p>Taro Yamada</p>
+        </section>
+
+        <section>
+          <section data-markdown>
+            ## 証明書の真正性を担保するにはどうするか？
+          </section>
+          <section>
+            <h2>証明書のpdfのハッシュ値をブロックチェーン上に刻み込めばいいじゃん！</h2>
+          </section>
+          <section>
+            <h2>それどうやるの？</h2>
+          </section>
+          <section>
+           <h2>Bitcoin Script の <span style="color:red">OP_RETURN</span> を使えば良い.</h2>
+          </section>
+        </section>
+
+        <section data-markdown>
+          ## OP_RETURNの説明
+          - OP_RETURN とは処理を途中終了する命令で, Bitcoin から見ると, OP_RETURN 以降は, ゴミのバイト列.
+          - OP_RETURN の後ろには 80bytes のデータを入れることができる.
+          - なので, OP_RETURNの後ろに sha256 のハッシュ値（64bytes）を刻みこめば良い.
+          - でも, ビットコインは金融取引の記録を提供するためにあるのでむやみに OP_RETURN を使って任意のバイト列を書き込むことは非推奨.
+        </section>
+
+        <section>
+          <section data-markdown>
+            ## OP_RETURNのJSでの使い方
+            - bitcoinjs-libを使えば超簡単!
+          </section>
+          <section>
+            <h2>コード例</h2>
+          <pre><code class="hljs" data-trim data-line-numbers="1-14">
+// Create tx
+const txb = new bitcoin.TransactionBuilder(TESTNET);
+// OP_RETURNの後ろにpdfのハッシュ値をくっ付けてる
+const data = Buffer.from(digest, 'hex');
+const certificateOutput = bitcoin.payments.embed({ data: [data] }).output;
+// add Output
+txb.addOutput(certificateOutput, 0); // pdfのハッシュ値を載せたOP_RETURN用のoutput
+txb.addOutput(address, balance - fee); // 残高をまた自分のアドレスに返却
+// build tx
+const tx = txb.build();
+          </code></pre>
+          </section>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## 個人的にハマったところ
+            - htmlとJSでの値の受け渡し.
+            - chain.soへAPIを叩いてるので, 同期処理をしたかったけどNode.jsは標準で非同期処理を行うので困った.
+            - Node.jsはバックエンドの言語なので, それをフロントエンドで使えるようにする.
+            - アドレス生成した手順と同じ手順で署名をしないといけない.
+            - bitcoinjs-libの署名の仕方がP2SHとP2WPKHでは, 引数を増やすだけだが何を渡せば良いか分からなかった.
+          </script>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ## 個人的に次やりたいこと
+            - chain.soへのAPI -> VPSにある自分のフルノードへ
+             - 新規にTx来たかの確認はZMQ
+             - その後は bitcoin-cli経由のJSON-RPC か Raw Data を処理する.
+            - フルノード何個か立ててロードバランサーを使って可用性を高める.
+            - 一通りの流れをサーバーレスとコンテナでやってみる.
+             - Firebase, Kubernetes
+          </script>
+        </section>
+
+        <section data-markdown>
+          <script type="text/template">
+            ##  感想
+            - 作るの楽しい!
+            - いろんな技術を学ぶの楽しい!!
+            - オープンソース最高!!!
+          </script>
+        </section>
+      </div>
+    </div>
+
+    <script src="js/reveal.js"></script>
+
+    <script>
+      // More info about config & dependencies:
+      // - https://github.com/hakimel/reveal.js#configuration
+      // - https://github.com/hakimel/reveal.js#dependencies
+      Reveal.initialize({
+        dependencies: [
+          { src: 'plugin/markdown/marked.js' },
+          { src: 'plugin/markdown/markdown.js' },
+          { src: 'plugin/notes/notes.js', async: true },
+          { src: 'plugin/highlight/highlight.js', async: true }
+        ]
+      });
+    </script>
+  </body>
+</html>
